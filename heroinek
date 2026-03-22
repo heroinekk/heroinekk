@@ -1,0 +1,98 @@
+-- Ładowanie biblioteki Orion Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+-- Główne okno skryptu (Zmieniona nazwa pod Twój projekt)
+local Window = OrionLib:MakeWindow({
+    Name = "Oliwier MainHub | RCU", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "OliwierMainHub"
+})
+
+-- ==========================================
+-- ZAKŁADKA: AUTO HATCH (JAJKA)
+-- ==========================================
+local EggTab = Window:MakeTab({
+    Name = "Auto Hatch",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+EggTab:AddParagraph("Instrukcja", "Wybierz jajko z listy, stań blisko niego w grze i włącz Auto Hatch.")
+
+-- Zmienne globalne
+_G.AutoHatch = false
+_G.SelectedEgg = "Sparkle" -- Jajko domyślne
+
+-- Tabela ze wszystkimi jajkami. 
+-- Jeśli znajdziesz w SimpleSpy inne jajka, po prostu dopisz je tutaj w cudzysłowach!
+local EggList = {
+    "Basic", 
+    "Mythic", 
+    "Sparkle",
+    "Lava",
+    "Ocean",
+    "Forest",
+    "Desert",
+    "Winter"
+}
+
+-- Rozwijana lista (Dropdown) do wyboru jajka
+EggTab:AddDropdown({
+    Name = "Wybierz Jajko",
+    Default = "Sparkle",
+    Options = EggList,
+    Callback = function(Value)
+        _G.SelectedEgg = Value
+    end    
+})
+
+-- Główna funkcja otwierania jajek
+local function doHatch()
+    -- Definiujemy ścieżkę (którą znalazłeś) do RemoteEventu przed pętlą dla lepszej wydajności
+    local hatchRemote = game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("jag k\195\164nner en bot, hon heter anna, anna heter hon"):WaitForChild("RE"):WaitForChild("jag k\195\164nner en bot, hon heter anna, anna heter hon")
+    
+    while _G.AutoHatch do
+        task.wait(0.1) -- Prędkość otwierania (0.1 to bardzo szybko)
+        
+        pcall(function()
+            -- Odpalamy event, wysyłając nazwę wybranego jajka i ilość (1)
+            hatchRemote:FireServer(_G.SelectedEgg, 1)
+        end)
+    end
+end
+
+-- Przełącznik Włącz/Wyłącz (Toggle)
+EggTab:AddToggle({
+    Name = "Włącz Auto Hatch",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoHatch = Value
+        if Value then
+            doHatch()
+        end
+    end    
+})
+
+-- ==========================================
+-- ZAKŁADKA: INFO / USTAWIENIA
+-- ==========================================
+local InfoTab = Window:MakeTab({
+    Name = "Info",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+InfoTab:AddLabel("Stworzone do: Rebirth Champions Ultimate")
+InfoTab:AddLabel("Twórca Huba: Oliwier")
+
+-- Przycisk zamykający GUI, żeby można było je ukryć
+InfoTab:AddButton({
+    Name = "Zniszcz GUI",
+    Callback = function()
+        OrionLib:Destroy()
+    end    
+})
+
+-- Inicjalizacja GUI (wymagane na samym końcu)
+OrionLib:Init()
