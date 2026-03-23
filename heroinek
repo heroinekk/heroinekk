@@ -1,12 +1,48 @@
 -- =========================================
--- ANNIVERSARY STANDALONE GUI
+-- ANNIVERSARY STANDALONE GUI (STANDARD EDITION + CONFIG)
 -- =========================================
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
+
+-- =========================================
+-- SYSTEM KONFIGURACJI (AUTO-SAVE / AUTO-LOAD)
+-- =========================================
+local ConfigSystem = {
+    Folder = "AnniversaryHub",
+    File = "AnniversaryHub/Config.json",
+    Settings = {}
+}
+
+local function SaveConfig()
+    if writefile then
+        pcall(function()
+            if not isfolder(ConfigSystem.Folder) then
+                makefolder(ConfigSystem.Folder)
+            end
+            writefile(ConfigSystem.File, HttpService:JSONEncode(ConfigSystem.Settings))
+        end)
+    end
+end
+
+local function LoadConfig()
+    if readfile and isfile and isfile(ConfigSystem.File) then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(ConfigSystem.File))
+            if type(decoded) == "table" then
+                for k, v in pairs(decoded) do
+                    ConfigSystem.Settings[k] = v
+                end
+            end
+        end)
+    end
+end
+
+LoadConfig() -- Ładowanie konfiguracji przy starcie
 
 -- =========================================
 -- SYSTEM BEZPIECZNEGO GUI (OCHRONA PRZED USUNIĘCIEM)
@@ -168,13 +204,10 @@ local function CreateSectionHeader(text)
     return lbl
 end
 
-local function CreateToggle(text, callback)
+local function CreateToggle(id, text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 30)
     btn.Position = UDim2.new(0.05, 0, 0, currentY)
-    btn.Text = "[ OFF ] " .. text
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
     btn.Font = Enum.Font.Gotham
     btn.TextSize = 13
     btn.ZIndex = 1
@@ -183,9 +216,9 @@ local function CreateToggle(text, callback)
     corner.CornerRadius = UDim.new(0, 6)
     corner.Parent = btn
     
-    local state = false
-    btn.MouseButton1Click:Connect(function()
-        state = not state
+    local state = ConfigSystem.Settings[id] or false
+
+    local function updateVisuals()
         if state then
             btn.Text = "[ ON ] " .. text
             btn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
@@ -195,8 +228,18 @@ local function CreateToggle(text, callback)
             btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
             btn.TextColor3 = Color3.fromRGB(200, 200, 200)
         end
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        ConfigSystem.Settings[id] = state
+        SaveConfig()
+        updateVisuals()
         callback(state)
     end)
+    
+    updateVisuals()
+    task.spawn(function() callback(state) end)
     
     currentY = currentY + 35
     return btn
@@ -241,7 +284,7 @@ local function CreateParagraph(titleText, defaultContent)
     return content
 end
 
-local function CreateDropdown(placeholder, options, callback)
+local function CreateDropdown(id, placeholder, options, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(0.9, 0, 0, 30)
     container.Position = UDim2.new(0.05, 0, 0, currentY)
@@ -256,7 +299,6 @@ local function CreateDropdown(placeholder, options, callback)
     mainBtn.Size = UDim2.new(1, -10, 1, 0)
     mainBtn.Position = UDim2.new(0, 5, 0, 0)
     mainBtn.BackgroundTransparency = 1
-    mainBtn.Text = placeholder
     mainBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     mainBtn.Font = Enum.Font.Gotham
     mainBtn.TextSize = 13
@@ -303,6 +345,13 @@ local function CreateDropdown(placeholder, options, callback)
     local listLayout = Instance.new("UIListLayout")
     listLayout.Parent = listFrame
     
+    -- Config Load
+    local currentValue = ConfigSystem.Settings[id]
+    if not currentValue or not table.find(options, currentValue) then
+        currentValue = options[1] or placeholder
+    end
+    ConfigSystem.Settings[id] = currentValue
+
     local optionBtns = {}
     for i, optionName in ipairs(options) do
         local optBtn = Instance.new("TextButton")
@@ -325,6 +374,8 @@ local function CreateDropdown(placeholder, options, callback)
             searchBox.Visible = false
             icon.Text = "▼"
             searchBox.Text = ""
+            ConfigSystem.Settings[id] = optionName
+            SaveConfig()
             callback(optionName)
         end)
     end
@@ -354,16 +405,21 @@ local function CreateDropdown(placeholder, options, callback)
         end
     end)
 
+    mainBtn.Text = currentValue
+    task.spawn(function() callback(currentValue) end)
+
     currentY = currentY + 35
     return {
         SetValue = function(val)
             mainBtn.Text = val
+            ConfigSystem.Settings[id] = val
+            SaveConfig()
             callback(val)
         end
     }
 end
 
-local function CreateMultiDropdown(placeholder, options, callback)
+local function CreateMultiDropdown(id, placeholder, options, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(0.9, 0, 0, 30)
     container.Position = UDim2.new(0.05, 0, 0, currentY)
@@ -378,7 +434,6 @@ local function CreateMultiDropdown(placeholder, options, callback)
     mainBtn.Size = UDim2.new(1, -10, 1, 0)
     mainBtn.Position = UDim2.new(0, 5, 0, 0)
     mainBtn.BackgroundTransparency = 1
-    mainBtn.Text = placeholder
     mainBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     mainBtn.Font = Enum.Font.Gotham
     mainBtn.TextSize = 13
@@ -425,8 +480,15 @@ local function CreateMultiDropdown(placeholder, options, callback)
     local listLayout = Instance.new("UIListLayout")
     listLayout.Parent = listFrame
     
-    local selectedItems = {}
+    -- Config Load
+    local selectedItems = ConfigSystem.Settings[id] or {}
+    if type(selectedItems) ~= "table" then selectedItems = {} end
+    ConfigSystem.Settings[id] = selectedItems
+    
     local selectedCount = 0
+    for k, v in pairs(selectedItems) do if v then selectedCount = selectedCount + 1 end end
+    mainBtn.Text = selectedCount > 0 and ("Selected: " .. selectedCount .. " items") or placeholder
+
     local optionBtns = {}
 
     for i, optionName in ipairs(options) do
@@ -434,9 +496,10 @@ local function CreateMultiDropdown(placeholder, options, callback)
         optBtn.Size = UDim2.new(1, 0, 0, 25)
         optBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
         optBtn.BorderSizePixel = 0
-        optBtn.Text = "  [ ] " .. optionName
+        local isSel = selectedItems[optionName]
+        optBtn.Text = isSel and ("  [X] " .. optionName) or ("  [ ] " .. optionName)
         optBtn.TextXAlignment = Enum.TextXAlignment.Left
-        optBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+        optBtn.TextColor3 = isSel and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 200, 200)
         optBtn.Font = Enum.Font.Gotham
         optBtn.TextSize = 12
         optBtn.ZIndex = 50
@@ -463,6 +526,8 @@ local function CreateMultiDropdown(placeholder, options, callback)
                 mainBtn.Text = placeholder
             end
 
+            ConfigSystem.Settings[id] = selectedItems
+            SaveConfig()
             callback(selectedItems)
         end)
     end
@@ -492,12 +557,21 @@ local function CreateMultiDropdown(placeholder, options, callback)
         end
     end)
 
+    task.spawn(function() callback(selectedItems) end)
+
     currentY = currentY + 35
     return {
         SetValue = function(valTable)
         end
     }
 end
+
+-- =========================================
+-- LOGIKA: USTAWIENIA / CONFIG
+-- =========================================
+CreateSectionHeader("Settings & Config")
+CreateLabel("Your settings are auto-saved locally.")
+CreateLabel("Directory: workspace/AnniversaryHub/Config.json")
 
 -- =========================================
 -- LOGIKA: AUTO SHOP
@@ -531,7 +605,7 @@ table.sort(shopOptions)
 
 local selectedShopItemIds = {}
 
-local shopMultiDropdown = CreateMultiDropdown("Items to Buy", shopOptions, function(selected)
+local shopMultiDropdown = CreateMultiDropdown("Shop_SelectedItems", "Items to Buy", shopOptions, function(selected)
     selectedShopItemIds = {}
     for name, _ in pairs(selected) do
         if shopItemMap[name] then
@@ -542,7 +616,7 @@ end)
 
 CreateLabel("Auto-buys selected items using Anniversary Cakes.")
 local autoShopEnabled = false
-CreateToggle("Auto Buy Anniversary Items", function(enabled)
+CreateToggle("Shop_AutoBuy", "Auto Buy Anniversary Items", function(enabled)
     autoShopEnabled = enabled
     if enabled then
         task.spawn(function()
@@ -574,7 +648,7 @@ end)
 
 CreateLabel("Collects the daily free event reward for you.")
 local autoClaimReward = false
-CreateToggle("Auto Claim Free/Secret Reward", function(enabled)
+CreateToggle("Shop_AutoClaim", "Auto Claim Free/Secret Reward", function(enabled)
     autoClaimReward = enabled
     if enabled then
         task.spawn(function()
@@ -630,21 +704,19 @@ end
 table.sort(eggOptions)
 
 local selectedEggName = displayToEggName[eggOptions[1]]
-local eggDropdown = CreateDropdown("Select Egg", eggOptions, function(selected)
+local eggDropdown = CreateDropdown("Hatch_SelectedEgg", "Select Egg", eggOptions, function(selected)
     if displayToEggName[selected] then selectedEggName = displayToEggName[selected] end
 end)
-if #eggOptions > 0 then eggDropdown.SetValue(eggOptions[1]) end
 
 local hatchAmounts = {"1", "3", "99"}
 local selectedHatchAmount = 99
-local amountDropdown = CreateDropdown("Select Amount", hatchAmounts, function(selected)
+local amountDropdown = CreateDropdown("Hatch_SelectedAmount", "Select Amount", hatchAmounts, function(selected)
     selectedHatchAmount = tonumber(selected) or 1
 end)
-amountDropdown.SetValue("99")
 
 CreateLabel("Opens the chosen egg infinitely.")
 local autoHatchEnabled = false
-CreateToggle("Auto Hatch Eggs", function(enabled)
+CreateToggle("Hatch_AutoHatch", "Auto Hatch Eggs", function(enabled)
     autoHatchEnabled = enabled
     if enabled then
         task.spawn(function()
@@ -671,17 +743,15 @@ CreateSectionHeader("Roksek Quest Automation")
 CreateLabel("Select task priority (Hourly, Daily or both).")
 local roksekModeOptions = {"Hourly & Daily", "Only Hourly", "Only Daily"}
 local selectedRoksekMode = "Hourly & Daily"
-local roksekModeDropdown = CreateDropdown("Priority Mode", roksekModeOptions, function(selected)
+local roksekModeDropdown = CreateDropdown("Roksek_SelectedMode", "Priority Mode", roksekModeOptions, function(selected)
     selectedRoksekMode = selected
 end)
-roksekModeDropdown.SetValue("Hourly & Daily")
 
 CreateLabel("Which egg to use for 'Hatch X Rarity' quests?")
 local selectedQuestEggName = displayToEggName[eggOptions[1]]
-local questEggDropdown = CreateDropdown("Egg for Hatching Quests", eggOptions, function(selected)
+local questEggDropdown = CreateDropdown("Roksek_SelectedQuestEgg", "Egg for Hatching Quests", eggOptions, function(selected)
     if displayToEggName[selected] then selectedQuestEggName = displayToEggName[selected] end
 end)
-if #eggOptions > 0 then questEggDropdown.SetValue(eggOptions[1]) end
 
 CreateLabel("Automatically reads, switches, and completes tasks.")
 local roksekStatusDisplay = CreateParagraph("Current Quest Progress", "Waiting to be turned on...")
@@ -699,7 +769,6 @@ local function ParseSuffixedNumber(str)
     return num
 end
 
--- Boss Logic Preparation
 local bossDataList = {}
 pcall(function()
     local rs = game:GetService("ReplicatedStorage")
@@ -710,7 +779,7 @@ pcall(function()
     end
 end)
 
-CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
+CreateToggle("Roksek_AutoQuest", "Auto Roksek Quest (Smart)", function(enabled)
     autoRoksekEnabled = enabled
     if enabled then
         task.spawn(function()
