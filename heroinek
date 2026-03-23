@@ -138,6 +138,36 @@ ContentContainer.Parent = MainFrame
 -- =========================================
 local currentY = 5
 
+local function CreateLabel(text, color)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.9, 0, 0, 20)
+    lbl.Position = UDim2.new(0.05, 0, 0, currentY)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = color or Color3.fromRGB(180, 180, 180)
+    lbl.Font = Enum.Font.GothamMedium
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = ContentContainer
+    currentY = currentY + 20
+    return lbl
+end
+
+local function CreateSectionHeader(text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.9, 0, 0, 25)
+    lbl.Position = UDim2.new(0.05, 0, 0, currentY)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = "--- " .. text:upper() .. " ---"
+    lbl.TextColor3 = Color3.fromRGB(255, 165, 0)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 13
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+    lbl.Parent = ContentContainer
+    currentY = currentY + 30
+    return lbl
+end
+
 local function CreateToggle(text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 30)
@@ -470,157 +500,11 @@ local function CreateMultiDropdown(placeholder, options, callback)
 end
 
 -- =========================================
--- LOGIKA: AUTO BOSS (DYNAMICZNA LISTA BOSSÓW Z PLIKÓW GRY)
+-- LOGIKA: AUTO SHOP
 -- =========================================
-local bossDataList = {}
-pcall(function()
-    local rs = game:GetService("ReplicatedStorage")
-    local AnniversaryBosses = require(rs:WaitForChild("Shared"):WaitForChild("List"):WaitForChild("Anniversary"):WaitForChild("AnniversaryBosses"))
-    if AnniversaryBosses then
-        for id, bossData in pairs(AnniversaryBosses) do
-            table.insert(bossDataList, {id = tostring(id), name = bossData.name})
-        end
-        table.sort(bossDataList, function(a, b) return tonumber(a.id) < tonumber(b.id) end)
-    end
-end)
+CreateSectionHeader("Anniversary Shop")
+CreateLabel("Select items you want to automatically purchase:")
 
-if #bossDataList == 0 then
-    bossDataList = {
-        {id = "1", name = "Haunted Miner"}, {id = "2", name = "Spider"}, {id = "3", name = "Evil Panda"},
-        {id = "4", name = "Kraken"}, {id = "5", name = "Circus Monster"}, {id = "6", name = "Hacker"},
-        {id = "7", name = "Dragon Emperor"}, {id = "8", name = "Crazy Scientist"}, {id = "9", name = "Ancient Devs"},
-        {id = "10", name = "Hungry Roksek"}
-    }
-end
-
-local bossNames = {}
-local bossMap = {}
-for _, boss in ipairs(bossDataList) do
-    local displayName = boss.id .. ". " .. boss.name
-    table.insert(bossNames, displayName)
-    bossMap[displayName] = boss.id
-end
-
-local selectedBossId = 1
-
-local bossDropdown = CreateDropdown("Select Boss", bossNames, function(selected)
-    if bossMap[selected] then
-        selectedBossId = tonumber(bossMap[selected]) or 1
-    end
-end)
-if #bossNames > 0 then
-    bossDropdown.SetValue(bossNames[1])
-end
-
-local autoBossWlaczony = false
-CreateToggle("Auto Boss (Anniversary)", function(enabled)
-    autoBossWlaczony = enabled
-    if enabled then
-        task.spawn(function()
-            local Knit = require(ReplicatedStorage.Packages.Knit)
-            local AnniversaryBossService
-            pcall(function() AnniversaryBossService = Knit.GetService("AnniversaryBossService") end)
-
-            while autoBossWlaczony do
-                pcall(function()
-                    if not AnniversaryBossService then
-                        AnniversaryBossService = Knit.GetService("AnniversaryBossService")
-                        if not AnniversaryBossService then return end
-                    end
-
-                    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    if not PlayerGui then return end
-
-                    local bossHUD = PlayerGui:FindFirstChild("MainUI") and PlayerGui.MainUI:FindFirstChild("HUD") and PlayerGui.MainUI.HUD:FindFirstChild("Bars") and PlayerGui.MainUI.HUD.Bars:FindFirstChild("BossFightHUD_Boss")
-                    local isFighting = bossHUD and bossHUD.Visible
-
-                    if isFighting then
-                        if AnniversaryBossService.damage and AnniversaryBossService.damage._re then
-                            AnniversaryBossService.damage._re:FireServer()
-                        end
-                    else
-                        local teleported = false
-                        pcall(function()
-                            local bossIdStr = tostring(selectedBossId)
-                            local bossName = ""
-                            for _, b in ipairs(bossDataList) do if tonumber(b.id) == selectedBossId then bossName = b.name; break end end
-                            
-                            local bossFolder = workspace.Game.Maps.Anniversary.Bosses:FindFirstChild(bossIdStr)
-                            if bossFolder then
-                                local targetObj = bossFolder:FindFirstChild(bossName)
-                                local targetCFrame = nil
-                                if targetObj then
-                                    if targetObj:IsA("Model") then targetCFrame = targetObj.PrimaryPart and targetObj.PrimaryPart.CFrame or targetObj:GetPivot()
-                                    elseif targetObj:IsA("BasePart") then targetCFrame = targetObj.CFrame end
-                                end
-                                if not targetCFrame then
-                                    local promptPart = bossFolder:FindFirstChild("Stand") and bossFolder.Stand:FindFirstChild("PROMPT")
-                                    if promptPart then targetCFrame = promptPart.CFrame end
-                                end
-                                
-                                if targetCFrame and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                    LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
-                                    teleported = true
-                                end
-                            end
-                        end)
-
-                        if teleported then task.wait(0.5) end
-
-                        if AnniversaryBossService.startFight then
-                            task.spawn(function() pcall(function() AnniversaryBossService:startFight(selectedBossId) end) end)
-                            task.wait(1) 
-                        end
-                    end
-                end)
-                task.wait(0.05)
-            end
-        end)
-    end
-end)
-
--- =========================================
--- LOGIKA: AUTO REBIRTH
--- =========================================
-local autoRebirthEnabled = false
-CreateToggle("Auto Anniversary Rebirth", function(enabled)
-    autoRebirthEnabled = enabled
-    if enabled then
-        task.spawn(function()
-            local Knit = require(ReplicatedStorage.Packages.Knit)
-            while autoRebirthEnabled do
-                pcall(function()
-                    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    if not PlayerGui then return end
-                    
-                    local menus = PlayerGui:FindFirstChild("MainUI") and PlayerGui.MainUI:FindFirstChild("Menus")
-                    local rebirthFrame = menus and menus:FindFirstChild("AnniversaryRebirthFrame")
-                    
-                    if rebirthFrame and rebirthFrame:FindFirstChild("Main") then
-                        local main = rebirthFrame.Main
-                        local requirements = main:FindFirstChild("Requirements")
-                        local progress = main:FindFirstChild("Progress")
-                        local rebirthBtn = main:FindFirstChild("Rebirth")
-                        
-                        if requirements and progress and rebirthBtn then
-                            local AnniversaryService
-                            pcall(function() AnniversaryService = Knit.GetService("AnniversaryService") end)
-                            
-                            if AnniversaryService and AnniversaryService.anniversaryRebirth then
-                                AnniversaryService:anniversaryRebirth()
-                            end
-                        end
-                    end
-                end)
-                task.wait(3)
-            end
-        end)
-    end
-end)
-
--- =========================================
--- LOGIKA: AUTO SHOP (FAST MULTI-SELECT)
--- =========================================
 local shopOptions = {}
 local shopItemMap = {}
 
@@ -647,7 +531,7 @@ table.sort(shopOptions)
 
 local selectedShopItemIds = {}
 
-local shopMultiDropdown = CreateMultiDropdown("Select Items (To Buy)", shopOptions, function(selected)
+local shopMultiDropdown = CreateMultiDropdown("Items to Buy", shopOptions, function(selected)
     selectedShopItemIds = {}
     for name, _ in pairs(selected) do
         if shopItemMap[name] then
@@ -656,6 +540,7 @@ local shopMultiDropdown = CreateMultiDropdown("Select Items (To Buy)", shopOptio
     end
 end)
 
+CreateLabel("Auto-buys selected items using Anniversary Cakes.")
 local autoShopEnabled = false
 CreateToggle("Auto Buy Anniversary Items", function(enabled)
     autoShopEnabled = enabled
@@ -663,7 +548,6 @@ CreateToggle("Auto Buy Anniversary Items", function(enabled)
         task.spawn(function()
             local Event = nil
             pcall(function() Event = ReplicatedStorage.Packages.Knit.Services:GetChildren()[56].RF:GetChildren()[8] end)
-            
             if not Event then
                 pcall(function()
                     for _, s in ipairs(ReplicatedStorage.Packages.Knit.Services:GetChildren()) do
@@ -674,14 +558,11 @@ CreateToggle("Auto Buy Anniversary Items", function(enabled)
                     end
                 end)
             end
-
             while autoShopEnabled do
                 pcall(function()
                     if Event then
                         for itemId, isSelected in pairs(selectedShopItemIds) do
-                            if isSelected then
-                                Event:InvokeServer(itemId)
-                            end
+                            if isSelected then Event:InvokeServer(itemId) end
                         end
                     end
                 end)
@@ -691,9 +572,7 @@ CreateToggle("Auto Buy Anniversary Items", function(enabled)
     end
 end)
 
--- =========================================
--- LOGIKA: AUTO CLAIM EVENT REWARD
--- =========================================
+CreateLabel("Collects the daily free event reward for you.")
 local autoClaimReward = false
 CreateToggle("Auto Claim Free/Secret Reward", function(enabled)
     autoClaimReward = enabled
@@ -701,7 +580,6 @@ CreateToggle("Auto Claim Free/Secret Reward", function(enabled)
         task.spawn(function()
             local Event = nil
             pcall(function() Event = ReplicatedStorage.Packages.Knit.Services:GetChildren()[56].RF:GetChildren()[4] end)
-            
             if not Event then
                 pcall(function()
                     for _, s in ipairs(ReplicatedStorage.Packages.Knit.Services:GetChildren()) do
@@ -712,7 +590,6 @@ CreateToggle("Auto Claim Free/Secret Reward", function(enabled)
                     end
                 end)
             end
-
             while autoClaimReward do
                 if Event then pcall(function() Event:InvokeServer() end) end
                 task.wait(1)
@@ -724,6 +601,9 @@ end)
 -- =========================================
 -- LOGIKA: AUTO HATCH
 -- =========================================
+CreateSectionHeader("Standard Auto Hatch")
+CreateLabel("Choose the egg and opening speed for farming.")
+
 local eggOptions = {}
 local displayToEggName = {}
 
@@ -750,24 +630,19 @@ end
 table.sort(eggOptions)
 
 local selectedEggName = displayToEggName[eggOptions[1]]
-
 local eggDropdown = CreateDropdown("Select Egg", eggOptions, function(selected)
-    if displayToEggName[selected] then
-        selectedEggName = displayToEggName[selected]
-    end
+    if displayToEggName[selected] then selectedEggName = displayToEggName[selected] end
 end)
-if #eggOptions > 0 then
-    eggDropdown.SetValue(eggOptions[1])
-end
+if #eggOptions > 0 then eggDropdown.SetValue(eggOptions[1]) end
 
 local hatchAmounts = {"1", "3", "99"}
 local selectedHatchAmount = 99
-
 local amountDropdown = CreateDropdown("Select Amount", hatchAmounts, function(selected)
     selectedHatchAmount = tonumber(selected) or 1
 end)
 amountDropdown.SetValue("99")
 
+CreateLabel("Opens the chosen egg infinitely.")
 local autoHatchEnabled = false
 CreateToggle("Auto Hatch Eggs", function(enabled)
     autoHatchEnabled = enabled
@@ -776,7 +651,6 @@ CreateToggle("Auto Hatch Eggs", function(enabled)
             local Knit = require(ReplicatedStorage.Packages.Knit)
             local EggService = nil
             pcall(function() EggService = Knit.GetService("EggService") end)
-
             while autoHatchEnabled do
                 pcall(function()
                     if EggService and EggService.openEgg and EggService.openEgg._re then
@@ -790,28 +664,27 @@ CreateToggle("Auto Hatch Eggs", function(enabled)
 end)
 
 -- =========================================
--- LOGIKA: INTELIGENTNY AUTO ROKSEK QUEST (Z OBSŁUGĄ HOURLY & DAILY)
+-- LOGIKA: AUTO ROKSEK QUEST
 -- =========================================
+CreateSectionHeader("Roksek Quest Automation")
+
+CreateLabel("Select task priority (Hourly, Daily or both).")
 local roksekModeOptions = {"Hourly & Daily", "Only Hourly", "Only Daily"}
 local selectedRoksekMode = "Hourly & Daily"
-
-local roksekModeDropdown = CreateDropdown("Roksek Quest Mode", roksekModeOptions, function(selected)
+local roksekModeDropdown = CreateDropdown("Priority Mode", roksekModeOptions, function(selected)
     selectedRoksekMode = selected
 end)
 roksekModeDropdown.SetValue("Hourly & Daily")
 
+CreateLabel("Which egg to use for 'Hatch X Rarity' quests?")
 local selectedQuestEggName = displayToEggName[eggOptions[1]]
-
-local questEggDropdown = CreateDropdown("Egg for Quests (Hatch Pet)", eggOptions, function(selected)
-    if displayToEggName[selected] then
-        selectedQuestEggName = displayToEggName[selected]
-    end
+local questEggDropdown = CreateDropdown("Egg for Hatching Quests", eggOptions, function(selected)
+    if displayToEggName[selected] then selectedQuestEggName = displayToEggName[selected] end
 end)
-if #eggOptions > 0 then
-    questEggDropdown.SetValue(eggOptions[1])
-end
+if #eggOptions > 0 then questEggDropdown.SetValue(eggOptions[1]) end
 
-local roksekStatusDisplay = CreateParagraph("Roksek Quests Status", "Waiting to be turned on...")
+CreateLabel("Automatically reads, switches, and completes tasks.")
+local roksekStatusDisplay = CreateParagraph("Current Quest Progress", "Waiting to be turned on...")
 local autoRoksekEnabled = false
 
 local function ParseSuffixedNumber(str)
@@ -826,6 +699,17 @@ local function ParseSuffixedNumber(str)
     return num
 end
 
+-- Boss Logic Preparation
+local bossDataList = {}
+pcall(function()
+    local rs = game:GetService("ReplicatedStorage")
+    local AnniversaryBosses = require(rs:WaitForChild("Shared"):WaitForChild("List"):WaitForChild("Anniversary"):WaitForChild("AnniversaryBosses"))
+    if AnniversaryBosses then
+        for id, bossData in pairs(AnniversaryBosses) do table.insert(bossDataList, {id = tostring(id), name = bossData.name}) end
+        table.sort(bossDataList, function(a, b) return tonumber(a.id) < tonumber(b.id) end)
+    end
+end)
+
 CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
     autoRoksekEnabled = enabled
     if enabled then
@@ -838,24 +722,19 @@ CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
                 pcall(function()
                     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
                     if not PlayerGui then return end
-                    
                     local menus = PlayerGui:FindFirstChild("MainUI") and PlayerGui.MainUI:FindFirstChild("Menus")
                     local roksekFrame = menus and menus:FindFirstChild("AnniversaryRoksekNPCFrame")
                     
                     if roksekFrame then
                         local statusLines = {}
                         local activeQuestFound = false
-                        
                         local displaysList = roksekFrame:FindFirstChild("Displays") and roksekFrame.Displays:FindFirstChild("List")
                         local hourlyTab = displaysList and displaysList:FindFirstChild("Hourly")
                         local dailyTab = displaysList and displaysList:FindFirstChild("Daily")
                         local mainHolder = roksekFrame:FindFirstChild("Main") and roksekFrame.Main:FindFirstChild("Holder")
 
-                        -- Funkcja odpowiedzialna za "wciskanie" zakładek
                         local function clickTab(tab)
-                            if not tab then return end
-                            if lastClickedTab == tab then return end 
-                            
+                            if not tab or lastClickedTab == tab then return end 
                             if getconnections then
                                 local clickTarget = tab:FindFirstChild("Click") or tab
                                 for _, eventName in ipairs({"MouseButton1Click", "MouseButton1Down", "MouseButton1Up", "Activated"}) do
@@ -868,97 +747,56 @@ CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
                             task.wait(0.8) 
                         end
 
-                        -- Funkcja skanująca wybraną ścieżkę
                         local function ScanQuests(prefix)
                             if not mainHolder then return true end
                             local allLocked = true
-                            
                             for i = 1, 4 do
                                 local slot = mainHolder:FindFirstChild(tostring(i))
                                 if slot and slot:FindFirstChild("Main") then
-                                    
                                     local isLocked = false
                                     local lockedFrame = slot.Main:FindFirstChild("Locked")
-                                    
-                                    -- Dokładne sprawdzanie blokady
                                     if lockedFrame and lockedFrame.Visible then
-                                        if lockedFrame:IsA("GuiObject") and lockedFrame.BackgroundTransparency < 0.95 then
-                                            isLocked = true
-                                        end
-                                        
+                                        if lockedFrame:IsA("GuiObject") and lockedFrame.BackgroundTransparency < 0.95 then isLocked = true end
                                         local lockIcon = lockedFrame:FindFirstChild("_lockIcon")
-                                        if lockIcon and lockIcon.Visible then
-                                            if lockIcon:IsA("ImageLabel") and lockIcon.ImageTransparency < 0.95 then
-                                                isLocked = true
-                                            elseif not lockIcon:IsA("ImageLabel") then
-                                                isLocked = true
-                                            end
-                                        end
-                                        
+                                        if lockIcon and lockIcon.Visible and (not lockIcon:IsA("ImageLabel") or lockIcon.ImageTransparency < 0.95) then isLocked = true end
                                         for _, child in ipairs(lockedFrame:GetDescendants()) do
                                             if child:IsA("TextLabel") and child.Visible and child.TextTransparency < 0.95 then
                                                 local txt = string.lower(child.Text)
-                                                if string.match(txt, "%d+m %d+s") or string.match(txt, "%d+h %d+m") or string.match(txt, "%d+s") then
-                                                    isLocked = true
-                                                    break
-                                                end
+                                                if string.match(txt, "%d+m %d+s") or string.match(txt, "%d+h %d+m") or string.match(txt, "%d+s") then isLocked = true; break end
                                             end
                                         end
                                     end
-
-                                    if isLocked then
-                                        table.insert(statusLines, string.format("[%s] Slot %d: Locked / Cooldown 🔒", prefix, i))
-                                        continue
-                                    end
+                                    if isLocked then table.insert(statusLines, string.format("[%s] Slot %d: Locked 🔒", prefix, i)); continue end
 
                                     local upgradeNameLabel = slot.Main:FindFirstChild("UpgradeName")
                                     local questName = upgradeNameLabel and upgradeNameLabel:IsA("TextLabel") and upgradeNameLabel.Text or "Unknown quest"
-                                    
                                     local progressFrame = slot.Main:FindFirstChild("Progress")
                                     local progressText = ""
-                                    
                                     if progressFrame then
-                                        for _, desc in ipairs(progressFrame:GetDescendants()) do
-                                            if desc:IsA("TextLabel") and string.find(desc.Text, "/") then
-                                                progressText = desc.Text
-                                                break
-                                            end
-                                        end
+                                        for _, desc in ipairs(progressFrame:GetDescendants()) do if desc:IsA("TextLabel") and string.find(desc.Text, "/") then progressText = desc.Text; break end end
                                         if progressText == "" then
-                                            if progressFrame:IsA("TextLabel") then
-                                                progressText = progressFrame.Text
-                                            else
-                                                local txtLbl = progressFrame:FindFirstChildOfClass("TextLabel") or progressFrame:FindFirstChild("Amount") or progressFrame:FindFirstChild("Text")
-                                                if txtLbl and txtLbl:IsA("TextLabel") then
-                                                    progressText = txtLbl.Text
-                                                end
-                                            end
+                                            local txtLbl = progressFrame:FindFirstChildOfClass("TextLabel") or progressFrame:FindFirstChild("Amount") or progressFrame:FindFirstChild("Text")
+                                            if txtLbl and txtLbl:IsA("TextLabel") then progressText = txtLbl.Text end
                                         end
                                     end
 
                                     local isCompleted = false
-                                    if string.find(string.lower(progressText), "max") or string.find(string.lower(progressText), "done") then
-                                        isCompleted = true
+                                    if string.find(string.lower(progressText), "max") or string.find(string.lower(progressText), "done") then isCompleted = true
                                     else
                                         local curStr, maxStr = string.match(progressText, "([%d%.,KMBkmb]+)%s*/%s*([%d%.,KMBkmb]+)")
                                         if curStr and maxStr then
                                             local c = ParseSuffixedNumber(curStr)
                                             local m = ParseSuffixedNumber(maxStr)
-                                            if c >= m then
-                                                isCompleted = true
-                                            end
+                                            if c >= m then isCompleted = true end
                                         end
                                     end
 
-                                    if isCompleted then
-                                        table.insert(statusLines, string.format("[%s] Slot %d: Completed, waiting ⏳", prefix, i))
+                                    if isCompleted then table.insert(statusLines, string.format("[%s] Slot %d: Completed, waiting ⏳", prefix, i))
                                     else
                                         allLocked = false 
-                                        
                                         if not activeQuestFound then
                                             activeQuestFound = true
                                             table.insert(statusLines, string.format("[%s] Slot %d: %s [%s] (IN PROGRESS 🚀)", prefix, i, questName, progressText ~= "" and progressText or "0/1"))
-                                            
                                             local questTextLower = string.lower(questName)
                                             
                                             if string.find(questTextLower, "hatch") or string.find(questTextLower, "egg") or string.find(questTextLower, "open") then
@@ -966,13 +804,7 @@ CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
                                                     local EggService = Knit.GetService("EggService")
                                                     if EggService and EggService.openEgg and EggService.openEgg._re then
                                                         local targetEgg = selectedQuestEggName 
-                                                        
-                                                        for _, egg in ipairs(eggOptions) do
-                                                            if string.find(questTextLower, string.lower(egg)) then
-                                                                targetEgg = egg
-                                                                break
-                                                            end
-                                                        end
+                                                        for _, egg in ipairs(eggOptions) do if string.find(questTextLower, string.lower(egg)) then targetEgg = egg; break end end
                                                         EggService.openEgg._re:FireServer(targetEgg, selectedHatchAmount)
                                                     end
                                                 end)
@@ -983,36 +815,18 @@ CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
                                                     local AnniversaryBossService = Knit.GetService("AnniversaryBossService")
                                                     if AnniversaryBossService then
                                                         local bossHUD = PlayerGui.MainUI:FindFirstChild("HUD") and PlayerGui.MainUI.HUD:FindFirstChild("Bars") and PlayerGui.MainUI.HUD.Bars:FindFirstChild("BossFightHUD_Boss")
-                                                        
-                                                        local targetBossId = selectedBossId
-                                                        for _, b in ipairs(bossDataList) do
-                                                            if string.find(questTextLower, string.lower(b.name)) then
-                                                                targetBossId = tonumber(b.id)
-                                                                break
-                                                            end
-                                                        end
-
+                                                        local targetBossId = 1
+                                                        for _, b in ipairs(bossDataList) do if string.find(questTextLower, string.lower(b.name)) then targetBossId = tonumber(b.id); break end end
                                                         if bossHUD and bossHUD.Visible then
-                                                            if AnniversaryBossService.damage and AnniversaryBossService.damage._re then
-                                                                AnniversaryBossService.damage._re:FireServer()
-                                                            end
+                                                            if AnniversaryBossService.damage and AnniversaryBossService.damage._re then AnniversaryBossService.damage._re:FireServer() end
                                                         else
-                                                            if AnniversaryBossService.startFight then
-                                                                AnniversaryBossService:startFight(targetBossId)
-                                                            end
+                                                            if AnniversaryBossService.startFight then AnniversaryBossService:startFight(targetBossId) end
                                                         end
                                                     end
                                                 end)
                                             end
                                             
-                                            if string.find(questTextLower, "rebirth") then
-                                                pcall(function()
-                                                    local AnniversaryService = Knit.GetService("AnniversaryService")
-                                                    if AnniversaryService and AnniversaryService.anniversaryRebirth then
-                                                        AnniversaryService:anniversaryRebirth()
-                                                    end
-                                                end)
-                                            end
+                                            if string.find(questTextLower, "rebirth") then pcall(function() local AnniversaryService = Knit.GetService("AnniversaryService"); if AnniversaryService and AnniversaryService.anniversaryRebirth then AnniversaryService:anniversaryRebirth() end end) end
                                             
                                             if string.find(questTextLower, "use") and string.find(questTextLower, "ticket") then
                                                 pcall(function()
@@ -1020,25 +834,15 @@ CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
                                                     local InventoryService = Knit.GetService("InventoryService")
                                                     local data = DataController:getData()
                                                     local ticketId = nil
-
                                                     if data and data.inventory then
                                                         for cat, items in pairs(data.inventory) do
                                                             for id, item in pairs(items) do
-                                                                if type(item) == "table" and item.nm and string.find(string.lower(item.nm), "anniversaryticket") then
-                                                                    ticketId = id
-                                                                    break
-                                                                elseif type(id) == "string" and string.find(string.lower(id), "anniversaryticket") then
-                                                                    ticketId = id
-                                                                    break
-                                                                end
+                                                                if (type(item) == "table" and item.nm and string.find(string.lower(item.nm), "anniversaryticket")) or (type(id) == "string" and string.find(string.lower(id), "anniversaryticket")) then ticketId = id; break end
                                                             end
                                                             if ticketId then break end
                                                         end
                                                     end
-
-                                                    if ticketId then
-                                                        InventoryService:useItem(ticketId, {use = 1})
-                                                    end
+                                                    if ticketId then InventoryService:useItem(ticketId, {use = 1}) end
                                                 end)
                                             end
                                         else
@@ -1054,42 +858,24 @@ CreateToggle("Auto Roksek Quest (Smart)", function(enabled)
                             if selectedRoksekMode == "Hourly & Daily" then
                                 clickTab(hourlyTab)
                                 local isHourlyLocked = ScanQuests("Hourly")
-                                
                                 if isHourlyLocked then
                                     statusLines = {} 
                                     clickTab(dailyTab)
                                     ScanQuests("Daily")
-                                    
-                                    if tick() - checkTimer > 40 then
-                                        lastClickedTab = nil
-                                        checkTimer = tick()
-                                    end
-                                else
-                                    checkTimer = tick() 
-                                end
-                            elseif selectedRoksekMode == "Only Hourly" then
-                                clickTab(hourlyTab)
-                                ScanQuests("Hourly")
-                            elseif selectedRoksekMode == "Only Daily" then
-                                clickTab(dailyTab)
-                                ScanQuests("Daily")
-                            end
-                        elseif mainHolder then
-                            ScanQuests("Quests")
-                        end
+                                    if tick() - checkTimer > 40 then lastClickedTab = nil; checkTimer = tick() end
+                                else checkTimer = tick() end
+                            elseif selectedRoksekMode == "Only Hourly" then clickTab(hourlyTab); ScanQuests("Hourly")
+                            elseif selectedRoksekMode == "Only Daily" then clickTab(dailyTab); ScanQuests("Daily") end
+                        elseif mainHolder then ScanQuests("Quests") end
                         
                         roksekStatusDisplay.Text = table.concat(statusLines, "\n")
-                    else
-                        roksekStatusDisplay.Text = "Waiting for Roksek quests window..."
-                    end
+                    else roksekStatusDisplay.Text = "Waiting for Roksek quests window..." end
                 end)
                 task.wait(0.2) 
             end
             lastClickedTab = nil 
         end)
-    else
-        roksekStatusDisplay.Text = "Waiting to be turned on..."
-    end
+    else roksekStatusDisplay.Text = "Waiting to be turned on..." end
 end)
 
 ContentContainer.CanvasSize = UDim2.new(0, 0, 0, currentY + 15)
