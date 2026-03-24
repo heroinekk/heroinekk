@@ -1,720 +1,23 @@
 -- =========================================
--- ANNIVERSARY STANDALONE GUI (PREMIUM EDITION + CONFIG)
+-- ANNIVERSARY HUB (FLUENT-RENEWED EDITION)
 -- =========================================
 
+local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/bigbeanscripts/Pet-Warriors/refs/heads/main/test"))()
+local InterfaceManager = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 -- =========================================
--- SYSTEM KONFIGURACJI (AUTO-SAVE / AUTO-LOAD)
--- =========================================
-local ConfigSystem = {
-    Folder = "AnniversaryHub",
-    File = "AnniversaryHub/Config.json",
-    Settings = {}
-}
-
-local function SaveConfig()
-    if writefile then
-        pcall(function()
-            if not isfolder(ConfigSystem.Folder) then
-                makefolder(ConfigSystem.Folder)
-            end
-            writefile(ConfigSystem.File, HttpService:JSONEncode(ConfigSystem.Settings))
-        end)
-    end
-end
-
-local function LoadConfig()
-    if readfile and isfile and isfile(ConfigSystem.File) then
-        pcall(function()
-            local decoded = HttpService:JSONDecode(readfile(ConfigSystem.File))
-            if type(decoded) == "table" then
-                for k, v in pairs(decoded) do
-                    ConfigSystem.Settings[k] = v
-                end
-            end
-        end)
-    end
-end
-
-LoadConfig() -- Ładowanie konfiguracji przy starcie
-
--- =========================================
--- SYSTEM BEZPIECZNEGO GUI (OCHRONA PRZED USUNIĘCIEM)
--- =========================================
-local function SafeGetParent()
-    local parent
-    pcall(function()
-        if gethui then parent = gethui() else parent = CoreGui end
-    end)
-    return parent or LocalPlayer:WaitForChild("PlayerGui")
-end
-
-local guiParent = SafeGetParent()
-
-local existingGui = guiParent:FindFirstChild("AnniversaryPremiumGUI")
-if existingGui then existingGui:Destroy() end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AnniversaryPremiumGUI"
-ScreenGui.ResetOnSpawn = false 
-ScreenGui.DisplayOrder = 9999999
-ScreenGui.Parent = guiParent
-
--- GŁÓWNA RAMKA
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 340, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -170, 0.5, -250)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(45, 45, 55)
-MainStroke.Thickness = 1.5
-MainStroke.Parent = MainFrame
-
--- TYTUŁ I PASEK GÓRNY
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 45)
-TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = TitleBar
-
-local TitleLine = Instance.new("Frame") 
-TitleLine.Size = UDim2.new(1, 0, 0, 10)
-TitleLine.Position = UDim2.new(0, 0, 1, -10)
-TitleLine.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-TitleLine.BorderSizePixel = 0
-TitleLine.Parent = TitleBar
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -50, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "ANNIVERSARY HUB"
-Title.TextColor3 = Color3.fromRGB(255, 165, 0)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = TitleBar
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -38, 0, 7)
-CloseBtn.Text = "×"
-CloseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 22
-CloseBtn.Parent = TitleBar
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-
-CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-
--- =========================================
--- PRZEMIESZCZANIE GUI
--- =========================================
-local MoveBtn = Instance.new("TextButton")
-MoveBtn.Size = UDim2.new(0.9, 0, 0, 24)
-MoveBtn.Position = UDim2.new(0.05, 0, 0, 52)
-MoveBtn.Text = "MOVABLE GUI: ON"
-MoveBtn.BackgroundColor3 = Color3.fromRGB(40, 60, 100)
-MoveBtn.TextColor3 = Color3.fromRGB(200, 220, 255)
-MoveBtn.Font = Enum.Font.GothamMedium
-MoveBtn.TextSize = 11
-MoveBtn.Parent = MainFrame
-Instance.new("UICorner", MoveBtn).CornerRadius = UDim.new(0, 6)
-
-local dragging, dragInput, dragStart, startPos
-local isMovable = true
-
-TitleBar.InputBegan:Connect(function(input)
-    if isMovable and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-end)
-
-MoveBtn.MouseButton1Click:Connect(function()
-    isMovable = not isMovable
-    MoveBtn.Text = isMovable and "MOVABLE GUI: ON" or "MOVABLE GUI: OFF"
-    MoveBtn.BackgroundColor3 = isMovable and Color3.fromRGB(40, 60, 100) or Color3.fromRGB(80, 40, 40)
-end)
-
--- =========================================
--- SCROLLING FRAME & LAYOUT (PREMIUM)
--- =========================================
-local ContentContainer = Instance.new("ScrollingFrame")
-ContentContainer.Size = UDim2.new(1, 0, 1, -85)
-ContentContainer.Position = UDim2.new(0, 0, 0, 85)
-ContentContainer.BackgroundTransparency = 1
-ContentContainer.BorderSizePixel = 0
-ContentContainer.ScrollBarThickness = 3
-ContentContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 165, 0)
-ContentContainer.Parent = MainFrame
-
-local Layout = Instance.new("UIListLayout")
-Layout.Padding = UDim.new(0, 8)
-Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Parent = ContentContainer
-
-local Padding = Instance.new("UIPadding")
-Padding.PaddingTop = UDim.new(0, 5)
-Padding.PaddingBottom = UDim.new(0, 10)
-Padding.Parent = ContentContainer
-
--- =========================================
--- ELEMENTY UI - WERSJA PREMIUM Z CONFIG
+-- 1. POBIERANIE DANYCH Z PLIKÓW GRY
 -- =========================================
 
-local function CreateLabel(text, color)
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(0.88, 0, 0, 16)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = color or Color3.fromRGB(140, 140, 150)
-    lbl.Font = Enum.Font.GothamMedium
-    lbl.TextSize = 10
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.TextWrapped = true
-    lbl.Parent = ContentContainer
-    return lbl
-end
-
-local function CreateSectionHeader(text, icon)
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(0.92, 0, 0, 25)
-    header.BackgroundTransparency = 1
-    header.Parent = ContentContainer
-
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = (icon or "") .. " " .. text:upper()
-    lbl.TextColor3 = Color3.fromRGB(255, 165, 0)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 13
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Parent = header
-    
-    local line = Instance.new("Frame")
-    line.Size = UDim2.new(0.4, 0, 0, 1)
-    line.Position = UDim2.new(1, 0, 0.5, 0)
-    line.AnchorPoint = Vector2.new(1, 0.5)
-    line.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-    line.BackgroundTransparency = 0.6
-    line.Parent = header
-end
-
-local function CreateToggle(id, text, callback)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0.92, 0, 0, 38)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    frame.Parent = ContentContainer
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
-    
-    local fStroke = Instance.new("UIStroke")
-    fStroke.Color = Color3.fromRGB(45, 45, 55)
-    fStroke.Parent = frame
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.BackgroundTransparency = 1
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 13
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    btn.Parent = frame
-    
-    local statusIndicator = Instance.new("Frame")
-    statusIndicator.Size = UDim2.new(0, 40, 0, 20)
-    statusIndicator.Position = UDim2.new(1, -50, 0.5, -10)
-    statusIndicator.Parent = frame
-    Instance.new("UICorner", statusIndicator).CornerRadius = UDim.new(1, 0)
-    
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 14, 0, 14)
-    dot.Parent = statusIndicator
-    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-    
-    local state = ConfigSystem.Settings[id] or false
-
-    local function ApplyVisuals(instant)
-        local targetX = state and 23 or 3
-        local targetColor = state and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(50, 50, 60)
-        local dotColor = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
-        
-        btn.Text = state and ("  [ ON ] " .. text) or ("  [ OFF ] " .. text)
-        btn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(220, 220, 225)
-        
-        if instant then
-            dot.Position = UDim2.new(0, targetX, 0.5, -7)
-            dot.BackgroundColor3 = dotColor
-            statusIndicator.BackgroundColor3 = targetColor
-        else
-            TweenService:Create(dot, TweenInfo.new(0.2), {Position = UDim2.new(0, targetX, 0.5, -7), BackgroundColor3 = dotColor}):Play()
-            TweenService:Create(statusIndicator, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
-        end
-    end
-
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        ConfigSystem.Settings[id] = state
-        SaveConfig()
-        ApplyVisuals(false)
-        callback(state)
-    end)
-    
-    ApplyVisuals(true)
-    task.spawn(function() callback(state) end)
-    
-    return frame
-end
-
-local function CreateParagraph(titleText, defaultContent)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(0.92, 0, 0, 95)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    container.ZIndex = 1
-    container.Parent = ContentContainer
-    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
-
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -10, 0, 20)
-    title.Position = UDim2.new(0, 5, 0, 5)
-    title.BackgroundTransparency = 1
-    title.Text = titleText
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 13
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = container
-
-    local content = Instance.new("TextLabel")
-    content.Size = UDim2.new(1, -10, 1, -30)
-    content.Position = UDim2.new(0, 5, 0, 25)
-    content.BackgroundTransparency = 1
-    content.Text = defaultContent
-    content.TextColor3 = Color3.fromRGB(200, 200, 200)
-    content.Font = Enum.Font.Gotham
-    content.TextSize = 11
-    content.TextXAlignment = Enum.TextXAlignment.Left
-    content.TextYAlignment = Enum.TextYAlignment.Top
-    content.TextWrapped = true
-    content.Parent = container
-
-    -- Zwracamy "content" dla kompatybilności ze starym kodem
-    return content
-end
-
-local function CreateDropdown(id, placeholder, options, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(0.92, 0, 0, 34)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    container.ZIndex = 5
-    container.Parent = ContentContainer
-    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
-
-    local mainBtn = Instance.new("TextButton")
-    mainBtn.Size = UDim2.new(1, 0, 1, 0)
-    mainBtn.BackgroundTransparency = 1
-    mainBtn.TextColor3 = Color3.fromRGB(220, 220, 225)
-    mainBtn.Font = Enum.Font.GothamMedium
-    mainBtn.TextSize = 12
-    mainBtn.TextXAlignment = Enum.TextXAlignment.Left
-    mainBtn.ZIndex = 5
-    mainBtn.Parent = container
-    
-    local arrow = Instance.new("TextLabel")
-    arrow.Size = UDim2.new(0, 30, 1, 0)
-    arrow.Position = UDim2.new(1, -30, 0, 0)
-    arrow.BackgroundTransparency = 1
-    arrow.Text = "▼"
-    arrow.TextColor3 = Color3.fromRGB(255, 165, 0)
-    arrow.Font = Enum.Font.GothamBold
-    arrow.TextSize = 10
-    arrow.ZIndex = 5
-    arrow.Parent = container
-
-    local searchBox = Instance.new("TextBox")
-    searchBox.Size = UDim2.new(1, 0, 0, 28)
-    searchBox.Position = UDim2.new(0, 0, 1, 4)
-    searchBox.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-    searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    searchBox.PlaceholderText = "  Search..."
-    searchBox.Font = Enum.Font.Gotham
-    searchBox.TextSize = 11
-    searchBox.ZIndex = 52
-    searchBox.Visible = false
-    searchBox.Parent = container
-    Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 4)
-
-    local listFrame = Instance.new("ScrollingFrame")
-    listFrame.Size = UDim2.new(1, 0, 0, 120)
-    listFrame.Position = UDim2.new(0, 0, 1, 36)
-    listFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    listFrame.BorderSizePixel = 0
-    listFrame.ZIndex = 50
-    listFrame.Visible = false
-    listFrame.ScrollBarThickness = 2
-    listFrame.Parent = container
-    Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
-
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Parent = listFrame
-    
-    local currentValue = ConfigSystem.Settings[id]
-    if not currentValue or not table.find(options, currentValue) then
-        currentValue = options[1] or placeholder
-    end
-    ConfigSystem.Settings[id] = currentValue
-
-    local optionBtns = {}
-    for i, optionName in ipairs(options) do
-        local optBtn = Instance.new("TextButton")
-        optBtn.Size = UDim2.new(1, 0, 0, 24)
-        optBtn.BackgroundTransparency = 1
-        optBtn.Text = "  " .. optionName
-        optBtn.TextXAlignment = Enum.TextXAlignment.Left
-        optBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
-        optBtn.Font = Enum.Font.Gotham
-        optBtn.TextSize = 11
-        optBtn.ZIndex = 51
-        optBtn.Parent = listFrame
-
-        table.insert(optionBtns, {btn = optBtn, name = optionName:lower()})
-
-        optBtn.MouseButton1Click:Connect(function()
-            mainBtn.Text = "  " .. optionName
-            listFrame.Visible = false
-            searchBox.Visible = false
-            arrow.Text = "▼"
-            searchBox.Text = ""
-            ConfigSystem.Settings[id] = optionName
-            SaveConfig()
-            callback(optionName)
-        end)
-    end
-    listFrame.CanvasSize = UDim2.new(0, 0, 0, #options * 24)
-
-    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-        local searchText = searchBox.Text:lower()
-        local visibleCount = 0
-        for _, opt in ipairs(optionBtns) do
-            local visible = searchText == "" or string.find(opt.name, searchText, 1, true)
-            opt.btn.Visible = visible
-            if visible then visibleCount = visibleCount + 1 end
-        end
-        listFrame.CanvasSize = UDim2.new(0, 0, 0, visibleCount * 24)
-    end)
-
-    mainBtn.MouseButton1Click:Connect(function()
-        local willBeVisible = not listFrame.Visible
-        listFrame.Visible = willBeVisible
-        searchBox.Visible = willBeVisible
-        arrow.Text = willBeVisible and "▲" or "▼"
-        if willBeVisible then
-            for _, other in ipairs(ContentContainer:GetChildren()) do if other:IsA("Frame") then other.ZIndex = 1 end end
-            container.ZIndex = 100
-        else
-            container.ZIndex = 5
-        end
-    end)
-
-    mainBtn.Text = "  " .. currentValue
-    task.spawn(function() callback(currentValue) end)
-
-    return {
-        SetValue = function(val)
-            mainBtn.Text = "  " .. val
-            ConfigSystem.Settings[id] = val
-            SaveConfig()
-            callback(val)
-        end
-    }
-end
-
-local function CreateMultiDropdown(id, placeholder, options, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(0.92, 0, 0, 34)
-    container.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    container.ZIndex = 5
-    container.Parent = ContentContainer
-    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
-
-    local mainBtn = Instance.new("TextButton")
-    mainBtn.Size = UDim2.new(1, 0, 1, 0)
-    mainBtn.BackgroundTransparency = 1
-    mainBtn.TextColor3 = Color3.fromRGB(220, 220, 225)
-    mainBtn.Font = Enum.Font.GothamMedium
-    mainBtn.TextSize = 12
-    mainBtn.TextXAlignment = Enum.TextXAlignment.Left
-    mainBtn.ZIndex = 5
-    mainBtn.Parent = container
-    
-    local arrow = Instance.new("TextLabel")
-    arrow.Size = UDim2.new(0, 30, 1, 0)
-    arrow.Position = UDim2.new(1, -30, 0, 0)
-    arrow.BackgroundTransparency = 1
-    arrow.Text = "▼"
-    arrow.TextColor3 = Color3.fromRGB(255, 165, 0)
-    arrow.Font = Enum.Font.GothamBold
-    arrow.TextSize = 10
-    arrow.ZIndex = 5
-    arrow.Parent = container
-
-    local searchBox = Instance.new("TextBox")
-    searchBox.Size = UDim2.new(1, 0, 0, 28)
-    searchBox.Position = UDim2.new(0, 0, 1, 4)
-    searchBox.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-    searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    searchBox.PlaceholderText = "  Search..."
-    searchBox.Font = Enum.Font.Gotham
-    searchBox.TextSize = 11
-    searchBox.ZIndex = 52
-    searchBox.Visible = false
-    searchBox.Parent = container
-    Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 4)
-
-    local listFrame = Instance.new("ScrollingFrame")
-    listFrame.Size = UDim2.new(1, 0, 0, 120)
-    listFrame.Position = UDim2.new(0, 0, 1, 36)
-    listFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    listFrame.BorderSizePixel = 0
-    listFrame.ZIndex = 50
-    listFrame.Visible = false
-    listFrame.ScrollBarThickness = 2
-    listFrame.Parent = container
-    Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
-
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Parent = listFrame
-    
-    local selectedItems = ConfigSystem.Settings[id] or {}
-    if type(selectedItems) ~= "table" then selectedItems = {} end
-    ConfigSystem.Settings[id] = selectedItems
-    
-    local selectedCount = 0
-    for k, v in pairs(selectedItems) do if v then selectedCount = selectedCount + 1 end end
-    mainBtn.Text = selectedCount > 0 and ("  Selected: " .. selectedCount .. " items") or ("  " .. placeholder)
-
-    local optionBtns = {}
-
-    for i, optionName in ipairs(options) do
-        local optBtn = Instance.new("TextButton")
-        optBtn.Size = UDim2.new(1, 0, 0, 24)
-        optBtn.BackgroundTransparency = 1
-        local isSel = selectedItems[optionName]
-        optBtn.Text = isSel and ("  [X] " .. optionName) or ("  [ ] " .. optionName)
-        optBtn.TextXAlignment = Enum.TextXAlignment.Left
-        optBtn.TextColor3 = isSel and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(180, 180, 190)
-        optBtn.Font = Enum.Font.Gotham
-        optBtn.TextSize = 11
-        optBtn.ZIndex = 51
-        optBtn.Parent = listFrame
-
-        table.insert(optionBtns, {btn = optBtn, name = optionName:lower()})
-
-        optBtn.MouseButton1Click:Connect(function()
-            if selectedItems[optionName] then
-                selectedItems[optionName] = nil
-                selectedCount = selectedCount - 1
-                optBtn.Text = "  [ ] " .. optionName
-                optBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
-            else
-                selectedItems[optionName] = true
-                selectedCount = selectedCount + 1
-                optBtn.Text = "  [X] " .. optionName
-                optBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-            end
-
-            mainBtn.Text = selectedCount > 0 and ("  Selected: " .. selectedCount .. " items") or ("  " .. placeholder)
-
-            ConfigSystem.Settings[id] = selectedItems
-            SaveConfig()
-            callback(selectedItems)
-        end)
-    end
-    listFrame.CanvasSize = UDim2.new(0, 0, 0, #options * 24)
-
-    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-        local searchText = searchBox.Text:lower()
-        local visibleCount = 0
-        for _, opt in ipairs(optionBtns) do
-            local visible = searchText == "" or string.find(opt.name, searchText, 1, true)
-            opt.btn.Visible = visible
-            if visible then visibleCount = visibleCount + 1 end
-        end
-        listFrame.CanvasSize = UDim2.new(0, 0, 0, visibleCount * 24)
-    end)
-
-    mainBtn.MouseButton1Click:Connect(function()
-        local willBeVisible = not listFrame.Visible
-        listFrame.Visible = willBeVisible
-        searchBox.Visible = willBeVisible
-        arrow.Text = willBeVisible and "▲" or "▼"
-        if willBeVisible then
-            for _, other in ipairs(ContentContainer:GetChildren()) do if other:IsA("Frame") then other.ZIndex = 1 end end
-            container.ZIndex = 100
-        else
-            container.ZIndex = 5
-        end
-    end)
-
-    task.spawn(function() callback(selectedItems) end)
-
-    return {
-        SetValue = function(valTable)
-        end
-    }
-end
-
--- =========================================
--- LOGIKA: USTAWIENIA / CONFIG
--- =========================================
-CreateSectionHeader("Settings & Config", "⚙️")
-CreateLabel("Your settings are auto-saved locally.")
-CreateLabel("Directory: workspace/AnniversaryHub/Config.json")
-
--- =========================================
--- LOGIKA: AUTO SHOP
--- =========================================
-CreateSectionHeader("Anniversary Shop", "🎁")
-CreateLabel("Select items you want to automatically purchase:")
-
-local shopOptions = {}
-local shopItemMap = {}
-
+-- Pobieranie Jajek
+local eggOptions, displayToEggName = {}, {}
 pcall(function()
-    local rs = game:GetService("ReplicatedStorage")
-    local AnniversaryShopList = require(rs:WaitForChild("Shared"):WaitForChild("List"):WaitForChild("Anniversary"):WaitForChild("AnniversaryShop"))
-    if AnniversaryShopList then
-        for id, data in pairs(AnniversaryShopList) do
-            local dName = data.name or id
-            table.insert(shopOptions, dName)
-            shopItemMap[dName] = id
-        end
-    end
-end)
-
-if #shopOptions == 0 then
-    local fallbackItems = {"exclusiveEgg", "damagePotion", "luckPotion", "coinPotion", "gemsPotion"}
-    for _, item in ipairs(fallbackItems) do
-        table.insert(shopOptions, item)
-        shopItemMap[item] = item
-    end
-end
-table.sort(shopOptions)
-
-local selectedShopItemIds = {}
-
-local shopMultiDropdown = CreateMultiDropdown("Shop_SelectedItems", "Items to Buy", shopOptions, function(selected)
-    selectedShopItemIds = {}
-    for name, _ in pairs(selected) do
-        if shopItemMap[name] then
-            selectedShopItemIds[shopItemMap[name]] = true
-        end
-    end
-end)
-
-CreateLabel("Auto-buys selected items using Anniversary Cakes.")
-local autoShopEnabled = false
-CreateToggle("Shop_AutoBuy", "Auto Buy Anniversary Items", function(enabled)
-    autoShopEnabled = enabled
-    if enabled then
-        task.spawn(function()
-            local Event = nil
-            pcall(function() Event = ReplicatedStorage.Packages.Knit.Services:GetChildren()[56].RF:GetChildren()[8] end)
-            if not Event then
-                pcall(function()
-                    for _, s in ipairs(ReplicatedStorage.Packages.Knit.Services:GetChildren()) do
-                        if s.Name:lower():find("anna") or s.Name:lower():find("anniversary") then
-                            local rfFolder = s:FindFirstChild("RF")
-                            if rfFolder then Event = rfFolder:GetChildren()[8] or rfFolder:GetChildren()[1] end
-                        end
-                    end
-                end)
-            end
-            while autoShopEnabled do
-                pcall(function()
-                    if Event then
-                        for itemId, isSelected in pairs(selectedShopItemIds) do
-                            if isSelected then Event:InvokeServer(itemId) end
-                        end
-                    end
-                end)
-                task.wait(0.1)
-            end
-        end)
-    end
-end)
-
-CreateLabel("Collects the daily free event reward for you.")
-local autoClaimReward = false
-CreateToggle("Shop_AutoClaim", "Auto Claim Free/Secret Reward", function(enabled)
-    autoClaimReward = enabled
-    if enabled then
-        task.spawn(function()
-            local Event = nil
-            pcall(function() Event = ReplicatedStorage.Packages.Knit.Services:GetChildren()[56].RF:GetChildren()[4] end)
-            if not Event then
-                pcall(function()
-                    for _, s in ipairs(ReplicatedStorage.Packages.Knit.Services:GetChildren()) do
-                        if s.Name:lower():find("anna") or s.Name:lower():find("anniversary") then
-                            local rfFolder = s:FindFirstChild("RF")
-                            if rfFolder then Event = rfFolder:GetChildren()[4] end
-                        end
-                    end
-                end)
-            end
-            while autoClaimReward do
-                if Event then pcall(function() Event:InvokeServer() end) end
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
--- =========================================
--- LOGIKA: AUTO HATCH
--- =========================================
-CreateSectionHeader("Standard Auto Hatch", "🥚")
-CreateLabel("Choose the egg and opening speed for farming.")
-
-local eggOptions = {}
-local displayToEggName = {}
-
-pcall(function()
-    local rs = game:GetService("ReplicatedStorage")
-    local EggsModule = require(rs:WaitForChild("Shared"):WaitForChild("List"):WaitForChild("Pets"):WaitForChild("Eggs"))
+    local EggsModule = require(ReplicatedStorage.Shared.List.Pets.Eggs)
     if EggsModule then
         for eggName, eggData in pairs(EggsModule) do
             if typeof(eggData) == "table" and not eggName:lower():find("exclusive") then
@@ -724,137 +27,373 @@ pcall(function()
         end
     end
 end)
-
 if #eggOptions == 0 then
     local fallbackEggs = {"Basic", "Rare", "Epic", "Heaven"}
-    for _, item in ipairs(fallbackEggs) do
-        table.insert(eggOptions, item)
-        displayToEggName[item] = item
-    end
+    for _, item in ipairs(fallbackEggs) do table.insert(eggOptions, item); displayToEggName[item] = item end
 end
 table.sort(eggOptions)
 
-local selectedEggName = displayToEggName[eggOptions[1]]
-local eggDropdown = CreateDropdown("Hatch_SelectedEgg", "Select Egg", eggOptions, function(selected)
-    if displayToEggName[selected] then selectedEggName = displayToEggName[selected] end
-end)
-
-local hatchAmounts = {"1", "3", "99"}
-local selectedHatchAmount = 99
-local amountDropdown = CreateDropdown("Hatch_SelectedAmount", "Select Amount", hatchAmounts, function(selected)
-    selectedHatchAmount = tonumber(selected) or 1
-end)
-
-CreateLabel("Opens the chosen egg infinitely.")
-local autoHatchEnabled = false
-CreateToggle("Hatch_AutoHatch", "Auto Hatch Eggs", function(enabled)
-    autoHatchEnabled = enabled
-    if enabled then
-        task.spawn(function()
-            local Knit = require(ReplicatedStorage.Packages.Knit)
-            local EggService = nil
-            pcall(function() EggService = Knit.GetService("EggService") end)
-            while autoHatchEnabled do
-                pcall(function()
-                    if EggService and EggService.openEgg and EggService.openEgg._re then
-                        EggService.openEgg._re:FireServer(selectedEggName, selectedHatchAmount)
-                    end
-                end)
-                task.wait(0.15) 
-            end
-        end)
-    end
-end)
-
--- =========================================
--- LOGIKA: AUTO ROKSEK QUEST
--- =========================================
-CreateSectionHeader("Roksek Quest Automation", "📋")
-
-CreateLabel("Select task priority (Hourly, Daily or both).")
-local roksekModeOptions = {"Hourly & Daily", "Only Hourly", "Only Daily"}
-local selectedRoksekMode = "Hourly & Daily"
-local roksekModeDropdown = CreateDropdown("Roksek_SelectedMode", "Priority Mode", roksekModeOptions, function(selected)
-    selectedRoksekMode = selected
-end)
-
-CreateLabel("Which egg to use for 'Hatch X Rarity' quests?")
-local selectedQuestEggName = displayToEggName[eggOptions[1]]
-local questEggDropdown = CreateDropdown("Roksek_SelectedQuestEgg", "Egg for Hatching Quests", eggOptions, function(selected)
-    if displayToEggName[selected] then selectedQuestEggName = displayToEggName[selected] end
-end)
-
-CreateLabel("Automatically reads, switches, and completes tasks.")
-local roksekStatusDisplay = CreateParagraph("Current Quest Progress", "Waiting to be turned on...")
-local autoRoksekEnabled = false
-
-local function ParseSuffixedNumber(str)
-    if not str then return 0 end
-    str = string.gsub(str, ",", "")
-    str = string.upper(str)
-    local num = tonumber(string.match(str, "%d+%.?%d*")) or 0
-    if string.find(str, "K") then num = num * 1000
-    elseif string.find(str, "M") then num = num * 1000000
-    elseif string.find(str, "B") then num = num * 1000000000
-    end
-    return num
-end
-
+-- Pobieranie Bossów
 local bossDataList = {}
 pcall(function()
-    local rs = game:GetService("ReplicatedStorage")
-    local AnniversaryBosses = require(rs:WaitForChild("Shared"):WaitForChild("List"):WaitForChild("Anniversary"):WaitForChild("AnniversaryBosses"))
+    local AnniversaryBosses = require(ReplicatedStorage.Shared.List.Anniversary.AnniversaryBosses)
     if AnniversaryBosses then
         for id, bossData in pairs(AnniversaryBosses) do table.insert(bossDataList, {id = tostring(id), name = bossData.name}) end
         table.sort(bossDataList, function(a, b) return tonumber(a.id) < tonumber(b.id) end)
     end
 end)
+if #bossDataList == 0 then
+    bossDataList = {
+        {id = "1", name = "Haunted Miner"}, {id = "2", name = "Spider"}, {id = "3", name = "Evil Panda"},
+        {id = "4", name = "Kraken"}, {id = "5", name = "Circus Monster"}
+    }
+end
+local bossNames, bossMap = {}, {}
+for _, boss in ipairs(bossDataList) do
+    local displayName = boss.id .. ". " .. boss.name
+    table.insert(bossNames, displayName)
+    bossMap[displayName] = boss.id
+end
 
-CreateToggle("Roksek_AutoQuest", "Auto Roksek Quest (Smart)", function(enabled)
-    autoRoksekEnabled = enabled
-    if enabled then
-        task.spawn(function()
-            local Knit = require(ReplicatedStorage.Packages.Knit)
-            local lastClickedTab = nil
-            local checkTimer = tick()
-            
-            while autoRoksekEnabled do
-                pcall(function()
-                    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                    if not PlayerGui then return end
-                    local menus = PlayerGui:FindFirstChild("MainUI") and PlayerGui.MainUI:FindFirstChild("Menus")
-                    local roksekFrame = menus and menus:FindFirstChild("AnniversaryRoksekNPCFrame")
-                    
-                    if roksekFrame then
-                        local statusLines = {}
-                        local activeQuestFound = false
-                        local displaysList = roksekFrame:FindFirstChild("Displays") and roksekFrame.Displays:FindFirstChild("List")
-                        local hourlyTab = displaysList and displaysList:FindFirstChild("Hourly")
-                        local dailyTab = displaysList and displaysList:FindFirstChild("Daily")
-                        local mainHolder = roksekFrame:FindFirstChild("Main") and roksekFrame.Main:FindFirstChild("Holder")
+-- Pobieranie Sklepu
+local shopOptions, shopItemMap = {}, {}
+pcall(function()
+    local AnniversaryShopList = require(ReplicatedStorage.Shared.List.Anniversary.AnniversaryShop)
+    if AnniversaryShopList then
+        for id, data in pairs(AnniversaryShopList) do
+            local dName = data.name or id
+            table.insert(shopOptions, dName)
+            shopItemMap[dName] = id
+        end
+    end
+end)
+if #shopOptions == 0 then
+    local fallbackItems = {"exclusiveEgg", "damagePotion", "luckPotion", "coinPotion"}
+    for _, item in ipairs(fallbackItems) do table.insert(shopOptions, item); shopItemMap[item] = item end
+end
+table.sort(shopOptions)
+
+-- =========================================
+-- 2. TWORZENIE OKNA FLUENT-RENEWED
+-- =========================================
+local Window = Library:Window{
+    Title = "Anniversary Hub",
+    SubTitle = "Event Automator",
+    TabWidth = 160,
+    Size =  UDim2.fromOffset(580, 460),
+    Resize = false,
+    Theme = "Darker",
+    MinimizeKey = Enum.KeyCode.LeftShift
+}
+
+local Tabs = {
+    Farming = Window:AddTab({ Title = "Farming", Icon = "swords" }),
+    Shop = Window:AddTab({ Title = "Auto Shop", Icon = "shopping-cart" }),
+    Quests = Window:AddTab({ Title = "Roksek Quests", Icon = "scroll" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+-- =========================================
+-- 3. ZAKŁADKA FARMING
+-- =========================================
+local BossSection = Tabs.Farming:AddSection("Boss Farming")
+
+local selectedBossId = 1
+BossSection:Dropdown("AnnivBossDropdown", {
+    Title = "Select Boss",
+    Values = bossNames,
+    Searchable = true,
+    Multi = false,
+    Default = bossNames[1] or "",
+    Callback = function(Value)
+        if bossMap[Value] then selectedBossId = tonumber(bossMap[Value]) or 1 end
+    end
+})
+
+local autoBossEnabled = false
+BossSection:Toggle("AnnivAutoBoss", {
+    Title = "Auto Boss (Bypass TP)",
+    Description = "Automatically attacks the boss remotely without teleporting.",
+    Default = false,
+    Callback = function(Value)
+        autoBossEnabled = Value
+        if Value then
+            task.spawn(function()
+                local Knit = require(ReplicatedStorage.Packages.Knit)
+                while autoBossEnabled do
+                    pcall(function()
+                        local BossSrv = Knit.GetService("AnniversaryBossService")
+                        if not BossSrv then return end
+                        
+                        local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+                        if not pGui then return end
+                        local bossHUD = pGui:FindFirstChild("MainUI") and pGui.MainUI:FindFirstChild("HUD") and pGui.MainUI.HUD.Bars:FindFirstChild("BossFightHUD_Boss")
+                        
+                        -- TELEPORT BYPASS
+                        if bossHUD and bossHUD.Visible then
+                            if BossSrv.damage and BossSrv.damage._re then 
+                                BossSrv.damage._re:FireServer() 
+                            end
+                        else
+                            if BossSrv.startFight then 
+                                BossSrv:startFight(selectedBossId)
+                                task.wait(1) 
+                            end
+                        end
+                    end)
+                    task.wait(0.05)
+                end
+            end)
+        end
+    end
+})
+
+local HatchSection = Tabs.Farming:AddSection("Egg Hatching")
+
+local selectedEggName = eggOptions[1] or "Basic"
+HatchSection:Dropdown("AnnivHatchEgg", {
+    Title = "Select Egg",
+    Values = eggOptions,
+    Searchable = true,
+    Multi = false,
+    Default = eggOptions[1] or "",
+    Callback = function(Value)
+        if displayToEggName[Value] then selectedEggName = displayToEggName[Value] end
+    end
+})
+
+local selectedHatchAmount = 99
+HatchSection:Dropdown("AnnivHatchAmount", {
+    Title = "Select Amount",
+    Values = {"1", "3", "99"},
+    Multi = false,
+    Default = "99",
+    Callback = function(Value)
+        selectedHatchAmount = tonumber(Value) or 1
+    end
+})
+
+local autoHatchEnabled = false
+HatchSection:Toggle("AnnivAutoHatch", {
+    Title = "Auto Hatch Eggs",
+    Default = false,
+    Callback = function(Value)
+        autoHatchEnabled = Value
+        if Value then
+            task.spawn(function()
+                local Knit = require(ReplicatedStorage.Packages.Knit)
+                while autoHatchEnabled do
+                    pcall(function()
+                        local EggService = Knit.GetService("EggService")
+                        if EggService and EggService.openEgg and EggService.openEgg._re then
+                            EggService.openEgg._re:FireServer(selectedEggName, selectedHatchAmount)
+                        end
+                    end)
+                    task.wait(0.15)
+                end
+            end)
+        end
+    end
+})
+
+local RebirthSection = Tabs.Farming:AddSection("Rebirth")
+
+local autoRebirthEnabled = false
+RebirthSection:Toggle("AnnivAutoRebirth", {
+    Title = "Auto Anniversary Rebirth",
+    Default = false,
+    Callback = function(Value)
+        autoRebirthEnabled = Value
+        if Value then
+            task.spawn(function()
+                local Knit = require(ReplicatedStorage.Packages.Knit)
+                while autoRebirthEnabled do
+                    pcall(function()
+                        local AnniversaryService = Knit.GetService("AnniversaryService")
+                        if AnniversaryService and AnniversaryService.anniversaryRebirth then
+                            AnniversaryService:anniversaryRebirth()
+                        end
+                    end)
+                    task.wait(3)
+                end
+            end)
+        end
+    end
+})
+
+-- =========================================
+-- 4. ZAKŁADKA SHOP
+-- =========================================
+local ShopItemsSection = Tabs.Shop:AddSection("Buy Items")
+
+local selectedShopItemIds = {}
+ShopItemsSection:Dropdown("AnnivShopItems", {
+    Title = "Select Items to Buy",
+    Values = shopOptions,
+    Multi = true,
+    Searchable = true,
+    Default = {},
+    Callback = function(Value)
+        selectedShopItemIds = {}
+        for name, isSelected in pairs(Value) do
+            if isSelected and shopItemMap[name] then 
+                selectedShopItemIds[shopItemMap[name]] = true 
+            end
+        end
+    end
+})
+
+local autoShopEnabled = false
+ShopItemsSection:Toggle("AnnivAutoShop", {
+    Title = "Auto Buy Selected Items",
+    Default = false,
+    Callback = function(Value)
+        autoShopEnabled = Value
+        if Value then
+            task.spawn(function()
+                local Event = nil
+                pcall(function() Event = ReplicatedStorage.Packages.Knit.Services:GetChildren()[56].RF:GetChildren()[8] end)
+                if not Event then
+                    pcall(function()
+                        for _, s in ipairs(ReplicatedStorage.Packages.Knit.Services:GetChildren()) do
+                            if s.Name:lower():find("anna") or s.Name:lower():find("anniversary") then
+                                if s:FindFirstChild("RF") then Event = s.RF:GetChildren()[8] or s.RF:GetChildren()[1] end
+                            end
+                        end
+                    end)
+                end
+                while autoShopEnabled do
+                    pcall(function()
+                        if Event then
+                            for itemId, isSelected in pairs(selectedShopItemIds) do
+                                if isSelected then Event:InvokeServer(itemId) end
+                            end
+                        end
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+local RewardsSection = Tabs.Shop:AddSection("Rewards")
+
+local autoClaimReward = false
+RewardsSection:Toggle("AnnivAutoFreeReward", {
+    Title = "Auto Claim Free/Secret Reward",
+    Default = false,
+    Callback = function(Value)
+        autoClaimReward = Value
+        if Value then
+            task.spawn(function()
+                local Event = nil
+                pcall(function() Event = ReplicatedStorage.Packages.Knit.Services:GetChildren()[56].RF:GetChildren()[4] end)
+                if not Event then
+                    pcall(function()
+                        for _, s in ipairs(ReplicatedStorage.Packages.Knit.Services:GetChildren()) do
+                            if s.Name:lower():find("anna") or s.Name:lower():find("anniversary") then
+                                if s:FindFirstChild("RF") then Event = s.RF:GetChildren()[4] end
+                            end
+                        end
+                    end)
+                end
+                while autoClaimReward do
+                    if Event then pcall(function() Event:InvokeServer() end) end
+                    task.wait(2)
+                end
+            end)
+        end
+    end
+})
+
+-- =========================================
+-- 5. ZAKŁADKA ROKSEK QUESTS
+-- =========================================
+local QuestSettingsSection = Tabs.Quests:AddSection("Settings")
+
+local selectedRoksekMode = "Hourly & Daily"
+QuestSettingsSection:Dropdown("AnnivRoksekMode", {
+    Title = "Priority Mode",
+    Values = {"Hourly & Daily", "Only Hourly", "Only Daily"},
+    Multi = false,
+    Default = "Hourly & Daily",
+    Callback = function(Value)
+        selectedRoksekMode = Value
+    end
+})
+
+local selectedQuestEggName = eggOptions[1] or "Basic"
+QuestSettingsSection:Dropdown("AnnivQuestEgg", {
+    Title = "Egg for 'Hatch' Quests",
+    Values = eggOptions,
+    Multi = false,
+    Searchable = true,
+    Default = eggOptions[1] or "",
+    Callback = function(Value)
+        if displayToEggName[Value] then selectedQuestEggName = displayToEggName[Value] end
+    end
+})
+
+local QuestAutoSection = Tabs.Quests:AddSection("Automation")
+
+local RoksekStatus = QuestAutoSection:Paragraph("AnnivRoksekStatus", {
+    Title = "Quest Status",
+    Content = "Waiting to start...",
+    TitleAlignment = "Middle"
+})
+local autoRoksekEnabled = false
+
+local function ParseSuffixedNumber(str)
+    if not str then return 0 end
+    str = string.gsub(str, ",", ""):upper()
+    local num = tonumber(string.match(str, "%d+%.?%d*")) or 0
+    if string.find(str, "K") then num = num * 1000
+    elseif string.find(str, "M") then num = num * 1000000
+    elseif string.find(str, "B") then num = num * 1000000000 end
+    return num
+end
+
+QuestAutoSection:Toggle("AnnivAutoRoksek", {
+    Title = "START ROKSEK QUESTS (SMART)",
+    Default = false,
+    Callback = function(Value)
+        autoRoksekEnabled = Value
+        if Value then
+            task.spawn(function()
+                local Knit = require(ReplicatedStorage.Packages.Knit)
+                local lastClickedTab, checkTimer = nil, tick()
+                
+                while autoRoksekEnabled do
+                    pcall(function()
+                        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                        local roksekFrame = playerGui and playerGui.MainUI.Menus:FindFirstChild("AnniversaryRoksekNPCFrame")
+                        if not roksekFrame then RoksekStatus:SetValue("Waiting for NPC Window..."); return end
+
+                        local displaysList = roksekFrame.Displays.List
+                        local hourlyTab, dailyTab = displaysList.Hourly, displaysList.Daily
+                        local mainHolder = roksekFrame.Main.Holder
 
                         local function clickTab(tab)
-                            if not tab or lastClickedTab == tab then return end 
+                            if not tab or lastClickedTab == tab then return end
                             if getconnections then
-                                local clickTarget = tab:FindFirstChild("Click") or tab
-                                for _, eventName in ipairs({"MouseButton1Click", "MouseButton1Down", "MouseButton1Up", "Activated"}) do
-                                    if clickTarget[eventName] then
-                                        for _, conn in ipairs(getconnections(clickTarget[eventName])) do pcall(function() conn:Fire() end) end
-                                    end
-                                end
+                                local click = tab:FindFirstChild("Click") or tab
+                                for _, conn in ipairs(getconnections(click.MouseButton1Click)) do pcall(function() conn:Fire() end) end
                             end
                             lastClickedTab = tab
-                            task.wait(0.8) 
+                            task.wait(0.8)
                         end
 
+                        local statusLines, activeQuestFound = {}, false
+
                         local function ScanQuests(prefix)
-                            if not mainHolder then return true end
                             local allLocked = true
+                            if not mainHolder then return true end
                             for i = 1, 4 do
                                 local slot = mainHolder:FindFirstChild(tostring(i))
                                 if slot and slot:FindFirstChild("Main") then
-                                    local isLocked = false
                                     local lockedFrame = slot.Main:FindFirstChild("Locked")
+                                    local isLocked = false
                                     if lockedFrame and lockedFrame.Visible then
                                         if lockedFrame:IsA("GuiObject") and lockedFrame.BackgroundTransparency < 0.95 then isLocked = true end
                                         local lockIcon = lockedFrame:FindFirstChild("_lockIcon")
@@ -866,17 +405,20 @@ CreateToggle("Roksek_AutoQuest", "Auto Roksek Quest (Smart)", function(enabled)
                                             end
                                         end
                                     end
-                                    if isLocked then table.insert(statusLines, string.format("[%s] Slot %d: Locked 🔒", prefix, i)); continue end
+                                    
+                                    if isLocked then 
+                                        table.insert(statusLines, string.format("[%s] Slot %d: Locked 🔒", prefix, i))
+                                        continue 
+                                    end
 
-                                    local upgradeNameLabel = slot.Main:FindFirstChild("UpgradeName")
-                                    local questName = upgradeNameLabel and upgradeNameLabel:IsA("TextLabel") and upgradeNameLabel.Text or "Unknown quest"
+                                    local questName = slot.Main:FindFirstChild("UpgradeName") and slot.Main.UpgradeName.Text or "Unknown quest"
                                     local progressFrame = slot.Main:FindFirstChild("Progress")
                                     local progressText = ""
                                     if progressFrame then
-                                        for _, desc in ipairs(progressFrame:GetDescendants()) do if desc:IsA("TextLabel") and string.find(desc.Text, "/") then progressText = desc.Text; break end end
+                                        for _, d in ipairs(progressFrame:GetDescendants()) do if d:IsA("TextLabel") and string.find(d.Text, "/") then progressText = d.Text; break end end
                                         if progressText == "" then
                                             local txtLbl = progressFrame:FindFirstChildOfClass("TextLabel") or progressFrame:FindFirstChild("Amount") or progressFrame:FindFirstChild("Text")
-                                            if txtLbl and txtLbl:IsA("TextLabel") then progressText = txtLbl.Text end
+                                            if txtLbl then progressText = txtLbl.Text end
                                         end
                                     end
 
@@ -885,68 +427,54 @@ CreateToggle("Roksek_AutoQuest", "Auto Roksek Quest (Smart)", function(enabled)
                                     else
                                         local curStr, maxStr = string.match(progressText, "([%d%.,KMBkmb]+)%s*/%s*([%d%.,KMBkmb]+)")
                                         if curStr and maxStr then
-                                            local c = ParseSuffixedNumber(curStr)
-                                            local m = ParseSuffixedNumber(maxStr)
-                                            if c >= m then isCompleted = true end
+                                            if ParseSuffixedNumber(curStr) >= ParseSuffixedNumber(maxStr) then isCompleted = true end
                                         end
                                     end
 
-                                    if isCompleted then table.insert(statusLines, string.format("[%s] Slot %d: Completed, waiting ⏳", prefix, i))
+                                    if isCompleted then 
+                                        table.insert(statusLines, string.format("[%s] Slot %d: Finished ⏳", prefix, i))
                                     else
-                                        allLocked = false 
+                                        allLocked = false
                                         if not activeQuestFound then
                                             activeQuestFound = true
-                                            table.insert(statusLines, string.format("[%s] Slot %d: %s [%s] (IN PROGRESS 🚀)", prefix, i, questName, progressText ~= "" and progressText or "0/1"))
-                                            local questTextLower = string.lower(questName)
+                                            table.insert(statusLines, string.format("[%s] Slot %d: %s [%s] (DOING 🚀)", prefix, i, questName, progressText))
                                             
-                                            if string.find(questTextLower, "hatch") or string.find(questTextLower, "egg") or string.find(questTextLower, "open") then
-                                                pcall(function()
-                                                    local EggService = Knit.GetService("EggService")
-                                                    if EggService and EggService.openEgg and EggService.openEgg._re then
-                                                        local targetEgg = selectedQuestEggName 
-                                                        for _, egg in ipairs(eggOptions) do if string.find(questTextLower, string.lower(egg)) then targetEgg = egg; break end end
-                                                        EggService.openEgg._re:FireServer(targetEgg, selectedHatchAmount)
-                                                    end
-                                                end)
-                                            end
-                                            
-                                            if string.find(questTextLower, "boss") or string.find(questTextLower, "defeat") or string.find(questTextLower, "kill") then
-                                                pcall(function()
-                                                    local AnniversaryBossService = Knit.GetService("AnniversaryBossService")
-                                                    if AnniversaryBossService then
-                                                        local bossHUD = PlayerGui.MainUI:FindFirstChild("HUD") and PlayerGui.MainUI.HUD:FindFirstChild("Bars") and PlayerGui.MainUI.HUD.Bars:FindFirstChild("BossFightHUD_Boss")
-                                                        local targetBossId = 1
-                                                        for _, b in ipairs(bossDataList) do if string.find(questTextLower, string.lower(b.name)) then targetBossId = tonumber(b.id); break end end
-                                                        if bossHUD and bossHUD.Visible then
-                                                            if AnniversaryBossService.damage and AnniversaryBossService.damage._re then AnniversaryBossService.damage._re:FireServer() end
-                                                        else
-                                                            if AnniversaryBossService.startFight then AnniversaryBossService:startFight(targetBossId) end
-                                                        end
-                                                    end
-                                                end)
-                                            end
-                                            
-                                            if string.find(questTextLower, "rebirth") then pcall(function() local AnniversaryService = Knit.GetService("AnniversaryService"); if AnniversaryService and AnniversaryService.anniversaryRebirth then AnniversaryService:anniversaryRebirth() end end) end
-                                            
-                                            if string.find(questTextLower, "use") and string.find(questTextLower, "ticket") then
-                                                pcall(function()
-                                                    local DataController = Knit.GetController("DataController")
-                                                    local InventoryService = Knit.GetService("InventoryService")
-                                                    local data = DataController:getData()
-                                                    local ticketId = nil
-                                                    if data and data.inventory then
-                                                        for cat, items in pairs(data.inventory) do
-                                                            for id, item in pairs(items) do
-                                                                if (type(item) == "table" and item.nm and string.find(string.lower(item.nm), "anniversaryticket")) or (type(id) == "string" and string.find(string.lower(id), "anniversaryticket")) then ticketId = id; break end
+                                            local lowerName = questName:lower()
+                                            if string.find(lowerName, "hatch") or string.find(lowerName, "egg") then
+                                                local targetEgg = selectedQuestEggName
+                                                for _, egg in ipairs(eggOptions) do if string.find(lowerName, egg:lower()) then targetEgg = egg; break end end
+                                                Knit.GetService("EggService").openEgg._re:FireServer(targetEgg, selectedHatchAmount)
+                                                
+                                            elseif string.find(lowerName, "boss") or string.find(lowerName, "defeat") then
+                                                local targetId = 1
+                                                for _, b in ipairs(bossDataList) do if string.find(lowerName, b.name:lower()) then targetId = tonumber(b.id); break end end
+                                                local BossSrv = Knit.GetService("AnniversaryBossService")
+                                                local hud = playerGui.MainUI.HUD.Bars:FindFirstChild("BossFightHUD_Boss")
+                                                
+                                                -- TELEPORT BYPASS
+                                                if hud and hud.Visible then 
+                                                    BossSrv.damage._re:FireServer() 
+                                                else 
+                                                    BossSrv:startFight(targetId) 
+                                                end
+                                                
+                                            elseif string.find(lowerName, "use") and string.find(lowerName, "ticket") then
+                                                local data = Knit.GetController("DataController"):getData()
+                                                if data and data.inventory then
+                                                    for _, items in pairs(data.inventory) do
+                                                        for id, it in pairs(items) do
+                                                            if (type(it) == "table" and it.nm and string.find(it.nm:lower(), "anniversaryticket")) or (type(id) == "string" and string.find(id:lower(), "anniversaryticket")) then
+                                                                Knit.GetService("InventoryService"):useItem(id, {use = 1}); break
                                                             end
-                                                            if ticketId then break end
                                                         end
                                                     end
-                                                    if ticketId then InventoryService:useItem(ticketId, {use = 1}) end
-                                                end)
+                                                end
+                                            elseif string.find(lowerName, "rebirth") then
+                                                local AnniversaryService = Knit.GetService("AnniversaryService")
+                                                if AnniversaryService and AnniversaryService.anniversaryRebirth then AnniversaryService:anniversaryRebirth() end
                                             end
                                         else
-                                            table.insert(statusLines, string.format("[%s] Slot %d: %s [%s] (Waiting in queue ⏸️)", prefix, i, questName, progressText ~= "" and progressText or "0/1"))
+                                            table.insert(statusLines, string.format("[%s] Slot %d: Queued ⏸️", prefix, i))
                                         end
                                     end
                                 end
@@ -954,32 +482,41 @@ CreateToggle("Roksek_AutoQuest", "Auto Roksek Quest (Smart)", function(enabled)
                             return allLocked
                         end
 
-                        if hourlyTab and dailyTab then
-                            if selectedRoksekMode == "Hourly & Daily" then
-                                clickTab(hourlyTab)
-                                local isHourlyLocked = ScanQuests("Hourly")
-                                if isHourlyLocked then
-                                    statusLines = {} 
-                                    clickTab(dailyTab)
-                                    ScanQuests("Daily")
-                                    if tick() - checkTimer > 40 then lastClickedTab = nil; checkTimer = tick() end
-                                else checkTimer = tick() end
-                            elseif selectedRoksekMode == "Only Hourly" then clickTab(hourlyTab); ScanQuests("Hourly")
-                            elseif selectedRoksekMode == "Only Daily" then clickTab(dailyTab); ScanQuests("Daily") end
-                        elseif mainHolder then ScanQuests("Quests") end
-                        
-                        roksekStatusDisplay.Text = table.concat(statusLines, "\n")
-                    else roksekStatusDisplay.Text = "Waiting for Roksek quests window..." end
-                end)
-                task.wait(0.2) 
-            end
-            lastClickedTab = nil 
-        end)
-    else roksekStatusDisplay.Text = "Waiting to be turned on..." end
-end)
+                        if selectedRoksekMode == "Hourly & Daily" then
+                            clickTab(hourlyTab)
+                            if ScanQuests("Hourly") then
+                                statusLines = {}
+                                clickTab(dailyTab)
+                                ScanQuests("Daily")
+                                if tick() - checkTimer > 40 then lastClickedTab = nil; checkTimer = tick() end
+                            else checkTimer = tick() end
+                        elseif selectedRoksekMode == "Only Hourly" then clickTab(hourlyTab); ScanQuests("Hourly")
+                        elseif selectedRoksekMode == "Only Daily" then clickTab(dailyTab); ScanQuests("Daily") end
 
--- AUTO-RESIZE CONTENT
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 20)
-Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ContentContainer.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + 20)
-end)
+                        RoksekStatus:SetValue(table.concat(statusLines, "\n"))
+                    end)
+                    task.wait(0.2)
+                end
+            end)
+        else 
+            RoksekStatus:SetValue("Waiting to start...")
+        end
+    end
+})
+
+-- =========================================
+-- 6. INICJALIZACJA SAVEMANAGERA
+-- =========================================
+SaveManager:SetLibrary(Library)
+InterfaceManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("AnniversaryHub")
+SaveManager:SetFolder("AnniversaryHub/Config")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+SaveManager:LoadAutoloadConfig()
